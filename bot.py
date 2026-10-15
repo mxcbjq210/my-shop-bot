@@ -1,13 +1,15 @@
+import os
 import json
 import time
+import threading
 import urllib.request
 import urllib.parse
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
-TOKEN = "8638546684:AAE4l2_gI6BECvCdguiSqjr9elTqqrfmMNI"
+TOKEN = os.environ.get("TOKEN", "")
 API = f"https://api.telegram.org/bot{TOKEN}"
 SHOP_URL = "https://t.me/webappzconnectbot/temp_shop?startapp=shopidzxqawimv9o"
 
-# Нижняя (reply) клавиатура
 REPLY_KEYBOARD = {
     "keyboard": [
         [{"text": "🛍 Магазин"}]
@@ -35,19 +37,32 @@ def send_message(chat_id, text, reply_markup=None):
 
 
 def show_shop_button(chat_id):
-    """Показывает нижнюю reply-клавиатуру + сообщение с inline-кнопкой."""
     inline = {
         "inline_keyboard": [
-            [{"text": "🛍 Открыть магазин", "url": SHOP_URL}]
+            [{"text": "🛍 Открыть каталог", "url": SHOP_URL}]
         ]
     }
-    # Нижняя клавиатура
     send_message(chat_id, "КАТАЛОГ ТОВАРОВ", reply_markup=REPLY_KEYBOARD)
-    # Inline-кнопка со ссылкой
     send_message(chat_id, "Нажми, чтобы открыть каталог:", reply_markup=inline)
 
 
+class Ping(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+    def log_message(self, *args, **kwargs):
+        pass
+
+
+def run_pinger():
+    port = int(os.environ.get("PORT", 8080))
+    HTTPServer(("0.0.0.0", port), Ping).serve_forever()
+
+
 def main():
+    threading.Thread(target=run_pinger, daemon=True).start()
     print("Бот запущен")
     offset = None
     while True:
@@ -66,7 +81,6 @@ def main():
                 chat_id = msg["chat"]["id"]
                 text = (msg.get("text") or "").strip()
 
-                # /start или нажатие на нижнюю кнопку «🛍 Магазин»
                 if text.startswith("/start") or text == "🛍 Магазин":
                     show_shop_button(chat_id)
         except KeyboardInterrupt:
